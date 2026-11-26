@@ -51,7 +51,7 @@ func ToBoolE(i any) (bool, error) {
 	case string:
 		return strconv.ParseBool(b)
 	case json.Number:
-		v, err := ToInt64E(b)
+		v, err := ToFloat64E(b)
 		if err == nil {
 			return v != 0, nil
 		}

@@ -8,6 +8,7 @@ package cast_test
 import (
 	"encoding/json"
 	"html/template"
+	"strings"
 	"testing"
 	"time"
 
@@ -85,11 +86,50 @@ func TestBool(t *testing.T) {
 		{MyBool(false), false, false},
 
 		// Failure cases
+		{json.Number("invalid"), false, true},
 		{"test", false, true},
 		{testing.T{}, false, true},
 	}
 
 	runTests(t, testCases, cast.ToBool, cast.ToBoolE)
+}
+
+func TestBoolJSONNumbers(t *testing.T) {
+	for _, tc := range []struct {
+		input string
+		want  bool
+	}{
+		{"0.5", true},
+		{"-0.5", true},
+		{"1e-3", true},
+		{"-1e-3", true},
+		{"9223372036854775808", true},
+		{"1e20", true},
+		{"0", false},
+		{"-0.0", false},
+		{"0e3", false},
+		{"2", true},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			for _, useNumber := range []bool{false, true} {
+				decoder := json.NewDecoder(strings.NewReader(tc.input))
+				if useNumber {
+					decoder.UseNumber()
+				}
+				var value any
+				if err := decoder.Decode(&value); err != nil {
+					t.Fatal(err)
+				}
+				got, err := cast.ToBoolE(value)
+				if err != nil || got != tc.want {
+					t.Errorf("ToBoolE(%T(%v)) = %v, %v; want %v", value, value, got, err, tc.want)
+				}
+				if got := cast.ToBool(value); got != tc.want {
+					t.Errorf("ToBool(%T(%v)) = %v; want %v", value, value, got, tc.want)
+				}
+			}
+		})
+	}
 }
 
 func BenchmarkToBool(b *testing.B) {
